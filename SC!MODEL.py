@@ -78,8 +78,11 @@ with st.sidebar:
     if layout_type == "Main Regionals":
         st.info("Note: With 'Main Regionals', all warehouses must be of type MAIN.")
 
-# Calculate Z_value using norm.ppf based on the service level input
-Z_value = norm.ppf(service_level)
+# Calculate Z_value: אם service_level == 1.0, נקבע ל-5, אחרת נמצא את הערך המדויק
+if service_level == 1.0:
+    Z_value = 5
+else:
+    Z_value = norm.ppf(service_level)
 
 # -------------------------
 # Main App Tabs
