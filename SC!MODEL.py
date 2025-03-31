@@ -54,7 +54,7 @@ st.markdown(
 st.markdown("<p class='header-font'>Supply Chain & Warehouse Network Optimization</p>", unsafe_allow_html=True)
 
 # -------------------------
-# Sidebar: Global Parameters
+# Sidebar: Global Parameters (with inline help)
 # -------------------------
 with st.sidebar:
     st.markdown("<p class='header-font'>Global Parameters</p>", unsafe_allow_html=True)
@@ -63,22 +63,25 @@ with st.sidebar:
         min_value=0.0,
         max_value=100.0,
         value=5.0,
-        step=0.1
+        step=0.1,
+        help="Enter the annual interest rate (in %)."
     )
     service_level = st.slider(
         "Required Service Level (0-1)",
         min_value=0.0,
         max_value=1.0,
-        value=0.95
+        value=0.95,
+        help="Set the desired service level (between 0 and 1)."
     )
     layout_type = st.radio(
         "Layout Type",
-        options=["Central and Fronts", "Main Regionals"]
+        options=["Central and Fronts", "Main Regionals"],
+        help="Select the warehouse layout type."
     )
     if layout_type == "Main Regionals":
         st.info("Note: With 'Main Regionals', all warehouses must be of type MAIN.")
 
-# Calculate Z_value: אם service_level == 1.0, נקבע ל-5, אחרת נמצא את הערך המדויק
+# Calculate Z_value: if service_level == 1.0, set to 5; otherwise, compute using the norm
 if service_level == 1.0:
     Z_value = 5
 else:
@@ -93,54 +96,75 @@ tab_setup, tab_calculations, tab_submission = st.tabs(["Setup", "Calculations", 
 # TAB 1: Setup – Inputs for Brands, Rental, Markets & Warehouses
 # =====================================================
 with tab_setup:
+    st.markdown("<div class='section-container'><p class='subheader-font'>Setup – Define Your Data Inputs</p></div>", unsafe_allow_html=True)
+    
     # ----- Brand Pricing -----
     with st.container():
         st.markdown("<p class='subheader-font'>Brand Pricing</p>", unsafe_allow_html=True)
         BRANDS = ["Heliocol", "SunStar", "SunValue"]
         brand_unit_prices = {}
-        for brand in BRANDS:
-            brand_unit_prices[brand] = st.number_input(
-                f"Enter Unit Price for {brand} (per unit of 4 panels, in $)",
-                min_value=0.0,
-                value=80.0,
-                step=1.0,
-                key=f"{brand}_unit_price"
-            )
-    
+        cols = st.columns(len(BRANDS))
+        for idx, brand in enumerate(BRANDS):
+            with cols[idx]:
+                brand_unit_prices[brand] = st.number_input(
+                    f"Unit Price for {brand}",
+                    min_value=0.0,
+                    value=80.0,
+                    step=1.0,
+                    help=f"Enter unit price (per 4 panels in $) for {brand}.",
+                    key=f"{brand}_unit_price"
+                )
+
     # ----- Rental Parameters -----
     with st.container():
         st.markdown("<p class='subheader-font'>Rental Parameters</p>", unsafe_allow_html=True)
-        sq_ft_per_unit = st.number_input(
-            "Square feet required per unit (4 Panels) (default 0.8)",
-            min_value=0.0,
-            value=0.8,
-            step=0.1,
-            format="%.1f"
-        )
-        overhead_factor_main = st.number_input(
-            "Overhead factor for MAIN warehouse (default 1.2)",
-            min_value=1.0,
-            value=1.2,
-            step=0.1,
-            format="%.1f"
-        )
-        overhead_factor_front = st.number_input(
-            "Overhead factor for FRONT warehouse (default 1.5)",
-            min_value=1.0,
-            value=1.5,
-            step=0.1,
-            format="%.1f"
-        )
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            sq_ft_per_unit = st.number_input(
+                "Sq Ft per Unit",
+                min_value=0.0,
+                value=0.8,
+                step=0.1,
+                format="%.1f",
+                help="Square feet required per unit (4 panels)."
+            )
+        with col2:
+            overhead_factor_main = st.number_input(
+                "Overhead (MAIN)",
+                min_value=1.0,
+                value=1.2,
+                step=0.1,
+                format="%.1f",
+                help="Overhead factor for MAIN warehouse."
+            )
+        with col3:
+            overhead_factor_front = st.number_input(
+                "Overhead (FRONT)",
+                min_value=1.0,
+                value=1.5,
+                step=0.1,
+                format="%.1f",
+                help="Overhead factor for FRONT warehouse."
+            )
     
     # ----- Market Areas Setup -----
     with st.container():
         st.markdown("<p class='subheader-font'>Market Areas Setup</p>", unsafe_allow_html=True)
         base_market_areas = ["FL", "CA_SOUTH", "CA_NORTH", "TX", "NJ"]
         st.write("Standard market areas:", base_market_areas)
-        custom_market_areas_str = st.text_input("Enter additional market areas (comma separated)", value="")
+        custom_market_areas_str = st.text_input(
+            "Enter additional market areas (comma separated)",
+            value="",
+            help="For example: NY, PA, OH"
+        )
         custom_market_areas = [area.strip() for area in custom_market_areas_str.split(",") if area.strip() != ""]
         all_market_areas = list(dict.fromkeys(base_market_areas + custom_market_areas))
-        selected_market_areas = st.multiselect("Select Market Areas to use", options=all_market_areas, default=all_market_areas)
+        selected_market_areas = st.multiselect(
+            "Select Market Areas to use",
+            options=all_market_areas,
+            default=all_market_areas,
+            help="Choose which market areas to include in the model."
+        )
         
         market_area_data = {}
         for area in selected_market_areas:
@@ -148,43 +172,51 @@ with tab_setup:
             brand_data = {}
             for brand in BRANDS:
                 st.markdown(f"<b>Brand: {brand}</b>", unsafe_allow_html=True)
-                avg_order_size = st.number_input(
-                    f"Avg Order Size - {brand} ({area})",
-                    min_value=0,
-                    value=100,
-                    step=1,
-                    format="%d",
-                    key=f"{area}_{brand}_avg_order_size"
-                )
-                avg_daily_demand = st.number_input(
-                    f"Avg Daily Demand - {brand} ({area})",
-                    min_value=0,
-                    value=50,
-                    step=1,
-                    format="%d",
-                    key=f"{area}_{brand}_avg_daily_demand"
-                )
-                std_daily_demand = st.number_input(
-                    f"Std Daily Demand - {brand} ({area})",
-                    min_value=0.0,
-                    value=10.0,
-                    step=1.0,
-                    key=f"{area}_{brand}_std_daily_demand"
-                )
-                st.write(f"Enter 12-month Forecast Demand for {brand} in {area} (each value as a whole number)")
-                forecast = []
-                cols = st.columns(4)
-                for m in range(12):
-                    col = cols[m % 4]
-                    val = col.number_input(
-                        f"Month {m+1} - {brand} ({area})",
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    avg_order_size = st.number_input(
+                        f"Avg Order Size - {brand} ({area})",
                         min_value=0,
-                        value=0,
+                        value=100,
                         step=1,
                         format="%d",
-                        key=f"{area}_{brand}_forecast_{m}"
+                        key=f"{area}_{brand}_avg_order_size",
+                        help="Enter the average order size."
                     )
-                    forecast.append(val)
+                with col2:
+                    avg_daily_demand = st.number_input(
+                        f"Avg Daily Demand - {brand} ({area})",
+                        min_value=0,
+                        value=50,
+                        step=1,
+                        format="%d",
+                        key=f"{area}_{brand}_avg_daily_demand",
+                        help="Enter the average daily demand."
+                    )
+                with col3:
+                    std_daily_demand = st.number_input(
+                        f"Std Daily Demand - {brand} ({area})",
+                        min_value=0.0,
+                        value=10.0,
+                        step=1.0,
+                        key=f"{area}_{brand}_std_daily_demand",
+                        help="Enter the standard deviation of daily demand."
+                    )
+                st.write(f"Enter 12-month Forecast Demand for {brand} in {area}")
+                forecast = []
+                forecast_cols = st.columns(4)
+                for m in range(12):
+                    with forecast_cols[m % 4]:
+                        val = st.number_input(
+                            f"Month {m+1}",
+                            min_value=0,
+                            value=0,
+                            step=1,
+                            format="%d",
+                            key=f"{area}_{brand}_forecast_{m}",
+                            help="Forecast demand for this month."
+                        )
+                        forecast.append(val)
                 brand_data[brand] = {
                     "avg_order_size": avg_order_size,
                     "avg_daily_demand": avg_daily_demand,
@@ -197,36 +229,64 @@ with tab_setup:
     with st.container():
         st.markdown("<p class='subheader-font'>Warehouse Setup</p>", unsafe_allow_html=True)
         base_warehouse_locations = ["FL", "CA_SOUTH", "CA_NORTH", "TX", "NJ"]
-        st.write("Standard warehouse locations:", base_market_areas)
-        custom_warehouse_locations_str = st.text_input("Enter additional warehouse locations (comma separated)", value="", key="warehouse_locations")
+        st.write("Standard warehouse locations:", base_warehouse_locations)
+        custom_warehouse_locations_str = st.text_input(
+            "Enter additional warehouse locations (comma separated)",
+            value="",
+            key="warehouse_locations",
+            help="For example: NY, PA"
+        )
         custom_warehouse_locations = [loc.strip() for loc in custom_warehouse_locations_str.split(",") if loc.strip() != ""]
         all_warehouse_locations = list(dict.fromkeys(base_warehouse_locations + custom_warehouse_locations))
-        num_warehouses = st.number_input("Number of Warehouses", min_value=1, value=1, step=1)
+        num_warehouses = st.number_input(
+            "Number of Warehouses",
+            min_value=1,
+            value=1,
+            step=1,
+            help="Enter the total number of warehouses."
+        )
     
         warehouse_data = []
         for i in range(int(num_warehouses)):
             st.markdown(f"<p class='subheader-font'>Warehouse {i+1}</p>", unsafe_allow_html=True)
-            location = st.selectbox(f"Select Location for Warehouse {i+1}", options=all_warehouse_locations, key=f"wh_location_{i}")
-    
-            if layout_type == "Main Regionals":
-                wh_type = "MAIN"
-                st.write("Warehouse Type: MAIN (Only MAIN allowed for Main Regionals layout)")
-            else:
-                wh_type = st.radio(f"Select Warehouse Type for Warehouse {i+1}", options=["MAIN", "FRONT"], key=f"wh_type_{i}")
-    
-            served_markets = st.multiselect(f"Select Market Areas served by Warehouse {i+1}", options=selected_market_areas, key=f"wh_markets_{i}")
+            col1, col2 = st.columns(2)
+            with col1:
+                location = st.selectbox(
+                    f"Select Location for Warehouse {i+1}",
+                    options=all_warehouse_locations,
+                    key=f"wh_location_{i}",
+                    help="Choose a location for the warehouse."
+                )
+            with col2:
+                if layout_type == "Main Regionals":
+                    wh_type = "MAIN"
+                    st.write("Warehouse Type: MAIN")
+                else:
+                    wh_type = st.radio(
+                        f"Warehouse Type for Warehouse {i+1}",
+                        options=["MAIN", "FRONT"],
+                        key=f"wh_type_{i}",
+                        help="Select the warehouse type."
+                    )
+            served_markets = st.multiselect(
+                f"Select Market Areas served by Warehouse {i+1}",
+                options=selected_market_areas,
+                key=f"wh_markets_{i}",
+                help="Select all market areas that this warehouse will serve."
+            )
     
             if location not in served_markets:
                 st.error(f"Warehouse {i+1} location '{location}' must be included in its served market areas!")
     
             rent_pricing_method = st.radio(
-                f"Select Rent Pricing Method for Warehouse {i+1} (Price per Year)",
+                f"Rent Pricing Method for Warehouse {i+1}",
                 options=["Fixed Rent Price", "Square Foot Rent Price"],
-                key=f"rent_method_{i}"
+                key=f"rent_method_{i}",
+                help="Choose how the rent is calculated."
             )
             if rent_pricing_method == "Fixed Rent Price":
                 rent_price = st.number_input(
-                    f"Enter Fixed Rent Price (per year, in $) for Warehouse {i+1}",
+                    f"Fixed Rent Price for Warehouse {i+1} (per year, $)",
                     min_value=0.0,
                     value=1000.0,
                     step=1.0,
@@ -235,7 +295,7 @@ with tab_setup:
                 )
             else:
                 rent_price = st.number_input(
-                    f"Enter Rent Price per Square Foot (per year, in $) for Warehouse {i+1}",
+                    f"Rent Price per Square Foot for Warehouse {i+1} (per year, $)",
                     min_value=0.0,
                     value=10.0,
                     step=1.0,
@@ -244,7 +304,7 @@ with tab_setup:
                 )
     
             avg_employee_salary = st.number_input(
-                f"Enter Average Annual Salary per Employee for Warehouse {i+1} (in $)",
+                f"Average Annual Salary per Employee for Warehouse {i+1} ($)",
                 min_value=0,
                 value=50000,
                 step=1000,
@@ -257,45 +317,45 @@ with tab_setup:
             else:
                 default_emp = 2
             num_employees = st.number_input(
-                f"Enter Number of Employees for Warehouse {i+1}",
+                f"Number of Employees for Warehouse {i+1}",
                 min_value=0,
                 value=default_emp,
                 step=1,
                 key=f"num_employees_{i}"
             )
     
-            # For MAIN warehouses in Main Regionals that serve more than one market, require additional shipping inputs
+            # For MAIN warehouses in Main Regionals that serve more than one market, add additional shipping inputs
             land_shipping_data = {}
             if wh_type == "MAIN" and layout_type == "Main Regionals" and len(served_markets) > 1:
-                st.markdown(f"<p class='subheader-font'>Additional Land Shipping Inputs for Warehouse {i+1} (Main Regionals)</p>", unsafe_allow_html=True)
-                for add_area in served_markets[1:]:
-                    distance_val = st.number_input(
-                        f"Distance (miles) from warehouse {location} to area {add_area}",
-                        min_value=0.0,
-                        value=0.0,
-                        step=0.1,
-                        format="%.1f",
-                        key=f"dist_{i}_{add_area}"
-                    )
-                    if add_area in market_area_data:
-                        brand_avg_sizes = [bdata["avg_order_size"] for bdata in market_area_data[add_area].values()]
-                        area_avg_order = sum(brand_avg_sizes) / len(brand_avg_sizes) if brand_avg_sizes else 0
-                    else:
-                        area_avg_order = 0
-                    cost_val = st.number_input(
-                        f"Shipping cost per average order of {area_avg_order:.0f} units per mile for area {add_area}",
-                        min_value=0.0,
-                        value=0.0,
-                        step=0.1,
-                        format="%.2f",
-                        key=f"cost_{i}_{add_area}"
-                    )
-                    if cost_val == 0:
-                        st.error(f"Please enter a non-zero shipping cost for average order for area {add_area} in warehouse {location}.")
-                    land_shipping_data[add_area] = {
-                        "distance": distance_val,
-                        "cost_for_avg_order_per_mile": cost_val
-                    }
+                with st.expander(f"Additional Land Shipping Inputs for Warehouse {i+1} (Main Regionals)"):
+                    for add_area in served_markets[1:]:
+                        distance_val = st.number_input(
+                            f"Distance from warehouse ({location}) to area {add_area} (miles)",
+                            min_value=0.0,
+                            value=0.0,
+                            step=0.1,
+                            format="%.1f",
+                            key=f"dist_{i}_{add_area}"
+                        )
+                        if add_area in market_area_data:
+                            brand_avg_sizes = [bdata["avg_order_size"] for bdata in market_area_data[add_area].values()]
+                            area_avg_order = sum(brand_avg_sizes) / len(brand_avg_sizes) if brand_avg_sizes else 0
+                        else:
+                            area_avg_order = 0
+                        cost_val = st.number_input(
+                            f"Shipping cost per average order (avg order: {area_avg_order:.0f} units) for {add_area}",
+                            min_value=0.0,
+                            value=0.0,
+                            step=0.1,
+                            format="%.2f",
+                            key=f"cost_{i}_{add_area}"
+                        )
+                        if cost_val == 0:
+                            st.error(f"Please enter a non-zero shipping cost for {add_area} in warehouse {location}.")
+                        land_shipping_data[add_area] = {
+                            "distance": distance_val,
+                            "cost_for_avg_order_per_mile": cost_val
+                        }
     
             wh_dict = {
                 "location": location,
@@ -311,15 +371,16 @@ with tab_setup:
     
             if wh_type == "MAIN":
                 lt_shipping = st.number_input(
-                    f"Enter Lead Time (days) for shipping from Israel to Warehouse {i+1} (MAIN)",
+                    f"Lead Time for shipping from Israel to Warehouse {i+1} (days)",
                     min_value=0,
                     value=5,
                     step=1,
                     format="%d",
-                    key=f"lt_shipping_{i}"
+                    key=f"lt_shipping_{i}",
+                    help="Enter the lead time in days."
                 )
                 shipping_cost_40hc = st.number_input(
-                    f"Enter Shipping Cost for a 40HC container (per container, in $) from Israel to Warehouse {i+1} (MAIN)",
+                    f"Shipping Cost for a 40HC container to Warehouse {i+1} ($)",
                     min_value=0.0,
                     value=2000.0,
                     step=1.0,
@@ -330,7 +391,7 @@ with tab_setup:
                 wh_dict["shipping_cost_40hc"] = shipping_cost_40hc
             elif wh_type == "FRONT":
                 front_shipping_cost_40 = st.number_input(
-                    f"Enter Shipping Cost from MAIN warehouse to Warehouse {i+1} (FRONT) for a 40ft HC container (in $)",
+                    f"Shipping Cost from MAIN to Warehouse {i+1} (40ft container, $)",
                     min_value=0.0,
                     value=500.0,
                     step=1.0,
@@ -338,7 +399,7 @@ with tab_setup:
                     key=f"front_shipping_cost_40_{i}"
                 )
                 front_shipping_cost_53 = st.number_input(
-                    f"Enter Shipping Cost from MAIN warehouse to Warehouse {i+1} (FRONT) for a 53ft HC container (in $)",
+                    f"Shipping Cost from MAIN to Warehouse {i+1} (53ft container, $)",
                     min_value=0.0,
                     value=600.0,
                     step=1.0,
@@ -347,7 +408,8 @@ with tab_setup:
                 )
                 wh_dict["front_shipping_cost_40"] = front_shipping_cost_40
                 wh_dict["front_shipping_cost_53"] = front_shipping_cost_53
-                
+    
+                # For FRONT warehouses, allow selecting a serving MAIN warehouse
                 main_wh_options = []
                 main_wh_mapping = {}
                 for j, w in enumerate(warehouse_data):
@@ -357,7 +419,7 @@ with tab_setup:
                         main_wh_mapping[option_str] = j
                 if main_wh_options:
                     serving_central = st.selectbox(
-                        f"Select the MAIN warehouse serving Warehouse {i+1} (FRONT)",
+                        f"Select the MAIN warehouse serving Warehouse {i+1}",
                         options=main_wh_options,
                         key=f"serving_central_{i}"
                     )
@@ -367,13 +429,13 @@ with tab_setup:
                         main_wh = warehouse_data[main_wh_index]
                         common_markets = set(main_wh["served_markets"]).intersection(set(served_markets))
                         if not common_markets:
-                            st.error(f"Selected MAIN warehouse for Warehouse {i+1} does not serve any of its market areas!")
+                            st.error(f"Selected MAIN warehouse for Warehouse {i+1} does not serve any common market areas!")
                 else:
-                    st.error(f"No MAIN warehouse available to serve Warehouse {i+1} (FRONT). Please define a MAIN warehouse first.")
+                    st.error(f"No MAIN warehouse available for Warehouse {i+1} (FRONT). Please define a MAIN warehouse first.")
                     wh_dict["serving_central"] = None
             warehouse_data.append(wh_dict)
     
-        # Additional validation: check that every market area is served by at least one warehouse
+        # Additional validation: every market area must be served by at least one warehouse
         with st.container():
             st.markdown("<p class='subheader-font'>Validation</p>", unsafe_allow_html=True)
             market_not_served = []
@@ -398,9 +460,7 @@ def compute_max_monthly_forecast_for_area(area):
     max_m = 0
     if area in market_area_data:
         for m in range(12):
-            month_sum = 0
-            for brand, params in market_area_data[area].items():
-                month_sum += params["forecast_demand"][m]
+            month_sum = sum(params["forecast_demand"][m] for params in market_area_data[area].values())
             if month_sum > max_m:
                 max_m = month_sum
     return max_m
@@ -408,14 +468,14 @@ def compute_max_monthly_forecast_for_area(area):
 def compute_std_sum_for_area(area):
     total_std = 0
     if area in market_area_data:
-        for brand, params in market_area_data[area].items():
+        for params in market_area_data[area].values():
             total_std += params["std_daily_demand"]
     return total_std
 
 def compute_daily_demand_sum_for_area(area):
     total = 0
     if area in market_area_data:
-        for brand, params in market_area_data[area].items():
+        for params in market_area_data[area].values():
             total += params["avg_daily_demand"]
     return total
 
@@ -450,11 +510,10 @@ def compute_safety_stock_main(warehouse, layout):
     LT = warehouse.get("lt_shipping", 0)
     safety_stock_main = std_sum * sqrt(LT) * Z_value
     if layout == "Central and Fronts":
-        front_daily_demand = 0
-        for wh in warehouse_data:
-            if wh["type"] == "FRONT":
-                for area in wh["served_markets"]:
-                    front_daily_demand += compute_daily_demand_sum_for_area(area)
+        front_daily_demand = sum(
+            compute_daily_demand_sum_for_area(area)
+            for wh in warehouse_data if wh["type"] == "FRONT" for area in wh["served_markets"]
+        )
         safety_stock_main += 12 * front_daily_demand
     return safety_stock_main
 
@@ -496,11 +555,12 @@ def compute_inventory_breakdown(warehouse, interest_rate, brand_unit_prices, Z_v
 with tab_calculations:
     st.markdown("<p class='subheader-font'>Calculations</p>", unsafe_allow_html=True)
     container_capacity_40 = st.number_input(
-        "Container Capacity for 40ft HC (units, default 600)",
+        "Container Capacity for 40ft HC (units)",
         min_value=0,
         value=600,
         step=1,
-        format="%d"
+        format="%d",
+        help="Define the container capacity (number of units per container)."
     )
     
     # --- Rental Cost Calculation ---
@@ -638,10 +698,10 @@ with tab_calculations:
                         if wh["type"] == "FRONT":
                             warehouse_land_cost = 0
                             for m in range(12):
-                                monthly_forecast = 0
-                                for area in wh["served_markets"]:
-                                    monthly_forecast += sum(market_area_data[area][brand]["forecast_demand"][m] 
-                                                            for brand in market_area_data[area])
+                                monthly_forecast = sum(
+                                    sum(market_area_data[area][brand]["forecast_demand"][m] for brand in market_area_data[area])
+                                    for area in wh["served_markets"]
+                                )
                                 weekly_demand = monthly_forecast / 4.0
                                 cost_40_unit = wh["front_shipping_cost_40"] / container_capacity_40
                                 cost_53_unit = wh["front_shipping_cost_53"] / (container_capacity_40 * 1.37)
@@ -656,7 +716,7 @@ with tab_calculations:
                             additional_data = wh.get("land_shipping_data", {})
                             for area in wh["served_markets"][1:]:
                                 if area not in additional_data or additional_data[area]["cost_for_avg_order_per_mile"] == 0:
-                                    st.error(f"Missing shipping cost input for average order for area {area} in warehouse {wh['location']}.")
+                                    st.error(f"Missing shipping cost input for area {area} in warehouse {wh['location']}.")
                                 else:
                                     area_forecast = compute_annual_forecast_for_area(area)
                                     area_land_cost = 0
