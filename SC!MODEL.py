@@ -40,12 +40,11 @@ if 'grand_total' not in st.session_state:
 # -----------------------------------------------------
 st.set_page_config(
     page_title="Supply Chain Optimization Dashboard",
-    page_icon="🚚", # Standard emoji icon
+    page_icon="🚚",
     layout="wide"
 )
 
 # --- UI Enhancement Start ---
-# Inject Font Awesome and refined CSS
 st.markdown(
     """
     <head>
@@ -53,9 +52,7 @@ st.markdown(
     </head>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
-        html, body, [class*="css"] {
-            font-family: 'Roboto', sans-serif;
-        }
+        html, body, [class*="css"] { font-family: 'Roboto', sans-serif; }
         .main-header-font { font-size: 36px !important; font-weight: 700; color: #1E3A5F; text-align: center; margin-bottom: 30px; padding-top: 20px; }
         .section-header-font { font-size: 26px !important; font-weight: 700; color: #2C3E50; margin-top: 30px; margin-bottom: 15px; border-bottom: 2px solid #3498DB; padding-bottom: 5px; }
         .sub-header-font { font-size: 20px !important; font-weight: 500; color: #34495E; margin-top: 15px; margin-bottom: 10px; }
@@ -81,7 +78,6 @@ st.markdown(
 )
 # --- UI Enhancement End ---
 
-# --- Header using markdown for icon rendering ---
 st.markdown("<p class='main-header-font'><i class='fas fa-cogs icon'></i>Supply Chain & Warehouse Network Optimization</p>", unsafe_allow_html=True)
 
 # -------------------------
@@ -96,7 +92,7 @@ with st.sidebar:
     service_level = st.slider("", min_value=0.0, max_value=1.0, value=0.95, help="Set desired service level.", label_visibility="collapsed")
     st.divider()
     st.markdown("<p class='widget-label'><i class='fas fa-warehouse icon'></i> Layout Type</p>", unsafe_allow_html=True)
-    layout_type = st.radio("", options=["Central and Fronts", "Main Regionals"], help="Select warehouse network structure.", key="layout_type_radio", horizontal=True, label_visibility="collapsed")
+    layout_type = st.radio("", options=["Central and Fronts", "Main Regionals"], help="Select network structure.", key="layout_type_radio", horizontal=True, label_visibility="collapsed")
     if layout_type == "Main Regionals":
         st.info("ℹ️ In 'Main Regionals', all warehouses act as MAIN.")
     else:
@@ -165,9 +161,11 @@ with tab_setup:
             st.markdown("<p class='sub-header-font'>Configure Parameters for Selected Market Areas:</p>", unsafe_allow_html=True)
             for area in selected_market_areas:
                  with st.expander(f"Parameters for Market Area: {area}", expanded=False):
+                    # NEW: Allow user to choose active brands in the area
+                    active_brands = st.multiselect(f"Select Active Brands for {area}", options=BRANDS, default=BRANDS, key=f"{area}_active_brands")
                     brand_data = {}
-                    for brand in BRANDS:
-                        st.markdown(f"<b><i class='fas fa-tag icon'></i>Brand: {brand}</b>", unsafe_allow_html=True)
+                    for brand in active_brands:
+                        st.markdown(f"**Brand: {brand}**")
                         col1, col2, col3 = st.columns(3)
                         with col1:
                             avg_order_size = st.number_input(f"Avg Order Size", min_value=0, value=100, step=1, format="%d", key=f"{area}_{brand}_avg_order_size", help=f"Typical order size for {brand} in {area}.")
@@ -175,7 +173,7 @@ with tab_setup:
                             avg_daily_demand = st.number_input(f"Avg Daily Demand", min_value=0, value=50, step=1, format="%d", key=f"{area}_{brand}_avg_daily_demand", help=f"Average daily demand for {brand} in {area}.")
                         with col3:
                             std_daily_demand = st.number_input(f"Std Dev Daily Demand", min_value=0.0, value=10.0, step=1.0, key=f"{area}_{brand}_std_daily_demand", help=f"Demand volatility for {brand} in {area}.")
-                        st.markdown(f"<b>12-Month Forecast Demand ({brand} - {area})</b>", unsafe_allow_html=True)
+                        st.markdown(f"**12-Month Forecast Demand ({brand} - {area})**", unsafe_allow_html=True)
                         forecast = []
                         forecast_cols = st.columns(6)
                         months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
@@ -236,7 +234,7 @@ with tab_setup:
                     if rent_pricing_method == "Fixed Rent Price":
                         rent_price = st.number_input(f"Fixed Rent Price (WH {i+1}) ($/year)", min_value=0.0, value=50000.0, step=1000.0, format="%.0f", key=f"fixed_rent_{i}")
                     else:
-                        rent_price = st.number_input(f"Rent Price per Sq Ft (WH {i+1}) ($/year)", min_value=0.0, value=10.0, step=0.5, format="%.1f", key=f"sqft_rent_{i}")
+                        rent_price = st.number_input(f"Rent Price per Sq Ft (WH {i+1}) ($/year)", min_value=0.0, value=10.0, step=1.0, format="%.0f", key=f"sqft_rent_{i}")
                 wh_config["rent_pricing_method"] = rent_pricing_method
                 wh_config["rent_price"] = rent_price
                 st.markdown("---")
@@ -267,7 +265,10 @@ with tab_setup:
                                  distance_val = st.number_input(f"Distance to {add_area} (miles)", min_value=0.0, value=100.0, step=10.0, format="%.1f", key=f"dist_{i}_{add_area}")
                              with land_cols[1]:
                                  area_total_demand = sum(market_area_data[add_area][b]["avg_daily_demand"] for b in BRANDS if add_area in market_area_data and market_area_data[add_area][b]["avg_daily_demand"] > 0)
-                                 area_avg_order = (sum(market_area_data[add_area][b]["avg_order_size"] * market_area_data[add_area][b]["avg_daily_demand"] for b in BRANDS if add_area in market_area_data) / area_total_demand) if area_total_demand > 0 else 0
+                                 if area_total_demand > 0:
+                                     area_avg_order = sum(market_area_data[add_area][b]["avg_order_size"] * market_area_data[add_area][b]["avg_daily_demand"] for b in BRANDS if add_area in market_area_data) / area_total_demand
+                                 else:
+                                     area_avg_order = 0
                                  cost_val = st.number_input(f"Cost per Avg Order ({area_avg_order:.0f} units) to {add_area} ($)", min_value=0.0, value=50.0, step=1.0, format="%.2f", key=f"cost_{i}_{add_area}", help=f"Cost to ship an average order to {add_area}.")
                              if cost_val == 0 and area_total_demand > 0:
                                  st.warning(f"Enter a non-zero shipping cost for {add_area}.")
@@ -288,13 +289,29 @@ with tab_setup:
                          wh_config["serving_central_wh_key"] = serving_central_label
                      front_ship_col1, front_ship_col2 = st.columns(2)
                      with front_ship_col1:
-                         front_shipping_cost_40 = st.number_input("Cost (per 40ft Truckload, $)", min_value=0.0, value=500.0, step=1.0, format="%.0f", key=f"front_shipping_cost_40_{i}", help="Cost to ship a 40ft truckload.")
+                         front_shipping_cost_40 = st.number_input("Cost (per 40ft Truckload, $)", min_value=0.0, value=500.0, step=1.0, format="%.0f", key=f"front_shipping_cost_40_{i}", help="Cost for a 40ft truckload.")
                      with front_ship_col2:
-                         front_shipping_cost_53 = st.number_input("Cost (per 53ft Truckload, $)", min_value=0.0, value=600.0, step=1.0, format="%.0f", key=f"front_shipping_cost_53_{i}", help="Cost to ship a 53ft truckload.")
+                         front_shipping_cost_53 = st.number_input("Cost (per 53ft Truckload, $)", min_value=0.0, value=600.0, step=1.0, format="%.0f", key=f"front_shipping_cost_53_{i}", help="Cost for a 53ft truckload.")
                      wh_config["front_shipping_cost_40"] = front_shipping_cost_40
                      wh_config["front_shipping_cost_53"] = front_shipping_cost_53
                 temp_warehouse_configs[i] = wh_config
         warehouse_data = list(temp_warehouse_configs.values())
+        # NEW: Validate served markets consistency between FRONT and its serving MAIN warehouse
+        for i, wh in enumerate(warehouse_data):
+            if wh.get("type") == "FRONT":
+                serving_main_label = wh.get("serving_central_wh_key")
+                if serving_main_label:
+                    main_wh = None
+                    for candidate in warehouse_data:
+                        candidate_label = f"WH {warehouse_data.index(candidate)+1} ({candidate.get('location')})"
+                        if candidate_label == serving_main_label:
+                            main_wh = candidate
+                            break
+                    if main_wh:
+                        front_markets = set(wh.get("served_markets", []))
+                        main_markets = set(main_wh.get("served_markets", []))
+                        if not front_markets.issubset(main_markets):
+                            st.error(f"Validation Error: FRONT Warehouse {i+1} ({wh.get('location')}) serves markets {front_markets} but its serving MAIN warehouse ({main_wh.get('location')}) serves {main_markets}. Please update the MAIN warehouse's served markets.")
         all_markets_served = set()
         config_complete = True
         final_warehouse_list_for_calc = []
@@ -303,7 +320,7 @@ with tab_setup:
              config_complete = False
         for i, wh in enumerate(warehouse_data):
             if not wh.get("location"):
-                st.error(f"Location is missing for Warehouse {i+1}.")
+                st.error(f"Location missing for Warehouse {i+1}.")
                 config_complete = False
             if not wh.get("served_markets"):
                 st.error(f"Served markets missing for Warehouse {i+1} ({wh.get('location', 'N/A')}).")
@@ -326,7 +343,7 @@ with tab_setup:
     # --- UI Enhancement End ---
 
 # =====================================================
-# Helper Functions (Global – Used in Calculations)
+# Helper Functions (Used in Calculations)
 # =====================================================
 def compute_annual_forecast_for_area(area, market_data):
     total = 0
@@ -446,7 +463,7 @@ with tab_calculations:
     st.markdown("<p class='section-header-font'><i class='fas fa-cogs icon'></i>Calculate Network Costs</p>", unsafe_allow_html=True)
     st.info("Click the buttons below to calculate each cost component based on the setup data.")
     if not warehouse_data:
-         st.error("Cannot perform calculations. Please complete the warehouse setup and fix validation errors.")
+         st.error("Cannot perform calculations. Please complete the warehouse setup and resolve any errors.")
     else:
         calc_col1, calc_col2 = st.columns(2)
         with calc_col1:
@@ -494,7 +511,7 @@ with tab_calculations:
                             st.session_state.rental_costs_calculated = True
                             st.success("Rental Costs Calculated!")
                         else:
-                             st.session_state.rental_costs_calculated = False
+                            st.session_state.rental_costs_calculated = False
                  if st.session_state.rental_costs_calculated:
                      st.metric("Total Annual Rental Cost", f"${st.session_state.total_rental_cost:,.0f}")
                      st.dataframe(st.session_state.rental_details_df, use_container_width=True, hide_index=True)
@@ -514,7 +531,8 @@ with tab_calculations:
                              st.error("Container Capacity must be positive.")
                              valid_input = False
                         for i, wh in enumerate(warehouse_data):
-                             if not valid_input: break
+                             if not valid_input:
+                                  break
                              annual_demand_wh = compute_annual_demand(wh, market_area_data)
                              wh_shipping_cost = 0.0
                              shipment_type = "N/A"
@@ -541,7 +559,6 @@ with tab_calculations:
                                      wh_shipping_cost += regional_land_cost
                                      shipment_type += f" + Regional ({regional_land_cost:,.0f}$)"
                              elif wh["type"] == "FRONT" and layout_type == "Central and Fronts":
-                                 # Use the original logic: average cost per unit from 40ft and 53ft, then normalized by 0.85
                                  warehouse_land_cost = 0.0
                                  for m in range(12):
                                      monthly_forecast = 0
@@ -563,7 +580,6 @@ with tab_calculations:
                                 "Est. Shipments": shipment_type,
                                 "Annual Shipping Cost ($)": f"{wh_shipping_cost:,.0f}"
                              })
-                             total_sea_shipping_cost += 0  # MAIN shipping cost calculated separately
                              if wh["type"] == "MAIN":
                                  total_sea_shipping_cost += wh_shipping_cost
                              else:
@@ -574,7 +590,7 @@ with tab_calculations:
                             st.session_state.shipping_costs_calculated = True
                             st.success("Shipping Costs Calculated!")
                         else:
-                             st.session_state.shipping_costs_calculated = False
+                            st.session_state.shipping_costs_calculated = False
                  if st.session_state.shipping_costs_calculated:
                      st.metric("Total Annual Shipping Cost", f"${st.session_state.total_shipping_cost:,.0f}")
                      st.dataframe(st.session_state.shipping_details_df, use_container_width=True, hide_index=True)
@@ -677,7 +693,7 @@ with tab_calculations:
                             num_emp = wh.get("num_employees", 0)
                             salary = wh.get("avg_employee_salary", 0)
                             if num_emp < 0 or salary < 0:
-                                st.error(f"Number of employees and salary must be non-negative for Warehouse {i+1}.")
+                                st.error(f"Employees and salary must be non-negative for Warehouse {i+1}.")
                                 valid_input = False
                                 break
                             wh_labor_cost = num_emp * salary
@@ -702,10 +718,6 @@ with tab_calculations:
                 else:
                      st.info("Labor cost results will appear here after calculation.")
         # --- UI Enhancement End ---
-
-# =====================================================
-# TAB 3: Submission / Summary
-# =====================================================
 with tab_summary:
     st.markdown("<p class='section-header-font'><i class='fas fa-chart-pie icon'></i>Scenario Cost Summary</p>", unsafe_allow_html=True)
     all_calculated = (st.session_state.rental_costs_calculated and
@@ -763,7 +775,7 @@ with tab_summary:
             st.info("No cost data to display in the chart.")
         st.markdown("### Summary per Warehouse (Combined Costs)")
         summary_list = []
-        valid_wh_data_for_summary = warehouse_data  # Using validated warehouse data
+        valid_wh_data_for_summary = warehouse_data
         for i, wh in enumerate(valid_wh_data_for_summary):
              wh_label = f"WH {i+1} ({wh.get('location', 'N/A')})"
              rental_cost = 0.0
@@ -809,4 +821,3 @@ with tab_summary:
         if st.button("Generate Report / Submit Scenario", type="primary"):
             st.success("Scenario data processed! (Report generation not implemented in this demo)")
 # --- UI Enhancement End ---
-
