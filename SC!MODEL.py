@@ -247,7 +247,7 @@ tab_setup, tab_calculations, tab_summary = st.tabs([
 with tab_setup:
     st.markdown("<p class='section-header-font'><i class='fas fa-edit icon'></i>Define Your Network Parameters</p>", unsafe_allow_html=True)
     
-    # --- Use forms to group input sections and avoid immediate re-renders ---
+    # --- Use a form to group all setup inputs ---
     with st.form("setup_form"):
         col_setup_1, col_setup_2 = st.columns(2)
         # Brand Pricing
@@ -312,29 +312,41 @@ with tab_setup:
                 st.warning("Please select at least one market area.")
             else:
                 st.markdown("<p class='sub-header-font'>Configure Parameters for Selected Market Areas:</p>", unsafe_allow_html=True)
+                # For each market area, let the user select which brands are sold.
                 for area in selected_market_areas:
                     with st.expander(f"Parameters for Market Area: {area}", expanded=False):
+                        brands_sold = st.multiselect(
+                            f"Select Brands Sold in {area}",
+                            options=BRANDS,
+                            default=BRANDS,
+                            help="Select the brands that are active in this market area."
+                        )
+                        if not brands_sold:
+                            st.warning("At least one brand must be selected for this market area.")
                         brand_data = {}
-                        for brand in BRANDS:
-                            st.markdown(f"<b><i class='fas fa-tag icon'></i>Brand: {brand}</b>", unsafe_allow_html=True)
+                        for brand in brands_sold:
+                            st.markdown(f"<b>Brand: {brand}</b>", unsafe_allow_html=True)
                             col1, col2, col3 = st.columns(3)
                             with col1:
                                 avg_order_size = st.number_input(
-                                    "Avg Order Size", min_value=0, value=100, step=1, format="%d",
+                                    f"Avg Order Size - {brand} ({area})",
+                                    min_value=0, value=100, step=1, format="%d",
                                     key=f"{area}_{brand}_avg_order_size",
-                                    help=f"Typical order size for {brand} in {area}."
+                                    help="Enter the average order size."
                                 )
                             with col2:
                                 avg_daily_demand = st.number_input(
-                                    "Avg Daily Demand", min_value=0, value=50, step=1, format="%d",
+                                    f"Avg Daily Demand - {brand} ({area})",
+                                    min_value=0, value=50, step=1, format="%d",
                                     key=f"{area}_{brand}_avg_daily_demand",
-                                    help=f"Average daily demand for {brand} in {area}."
+                                    help="Enter the average daily demand."
                                 )
                             with col3:
                                 std_daily_demand = st.number_input(
-                                    "Std Dev Daily Demand", min_value=0.0, value=10.0, step=1.0,
+                                    f"Std Daily Demand - {brand} ({area})",
+                                    min_value=0.0, value=10.0, step=1.0,
                                     key=f"{area}_{brand}_std_daily_demand",
-                                    help=f"Volatility of demand for {brand} in {area}."
+                                    help="Enter the standard deviation of daily demand."
                                 )
                             st.markdown(f"<b>12-Month Forecast Demand ({brand} - {area})</b>", unsafe_allow_html=True)
                             forecast = []
@@ -343,7 +355,8 @@ with tab_setup:
                             for m in range(12):
                                 with forecast_cols[m % 6]:
                                     val = st.number_input(
-                                        f"{months[m]}", min_value=0, value=500, step=1, format="%d",
+                                        f"{months[m]}",
+                                        min_value=0, value=500, step=1, format="%d",
                                         key=f"{area}_{brand}_forecast_{m}",
                                         help=f"Forecast for {months[m]}."
                                     )
@@ -467,7 +480,6 @@ with tab_setup:
                         )
                     wh_config["avg_employee_salary"] = avg_employee_salary
                     wh_config["num_employees"] = num_employees
-
                     # Shipping Inputs for MAIN
                     if wh_type == "MAIN":
                         st.markdown(f"<p class='sub-header-font' style='color: #1A5276;'><i class='fas fa-ship icon'></i>International Shipping (WH {i+1})</p>", unsafe_allow_html=True)
@@ -559,7 +571,7 @@ with tab_setup:
                     temp_warehouse_configs[i] = wh_config
 
             warehouse_data = list(temp_warehouse_configs.values())
-            # Validation of Warehouse Configurations
+            # Warehouse validation
             all_markets_served = set()
             config_complete = True
             final_warehouse_list_for_calc = []
@@ -594,6 +606,7 @@ with tab_setup:
         submitted = st.form_submit_button("Save Configuration")
         if submitted:
             st.success("Configuration saved!")
+
     # End of setup form
 
 # =============================================================================
