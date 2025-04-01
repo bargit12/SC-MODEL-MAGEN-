@@ -248,7 +248,7 @@ with st.sidebar:
     )
     # Info messages remain the same
     if layout_type == "Main Regionals":
-        st.info("ℹ️ With 'Main Regionals', all defined warehouses will function as MAIN type, serving their assigned markets directly from the central source (e.g., Israel).")
+        st.info("ℹ️ With 'Main Regionals', all defined warehouses will function as MAIN type, serving their assigned markets directly from the central source.")
     else:
          st.info("ℹ️ With 'Central and Fronts', define one MAIN warehouse and potentially multiple FRONT warehouses served by the MAIN warehouse.")
 
