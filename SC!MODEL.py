@@ -1253,7 +1253,7 @@ with tab_summary:
         if not cost_df.empty:
             fig_pie = px.pie(cost_df, values='Cost ($)', names='Cost Component',
                              title='Distribution of Annual Costs', hole=0.3,
-                             color_discrete_sequence=px.colors.Sequential.Blues_r)
+                             color_discrete_sequence=px.colors.sequential.Blues_r)
             fig_pie.update_traces(textposition='inside', textinfo='percent+label', hoverinfo='label+percent+value')
             fig_pie.update_layout(title_x=0.5, showlegend=True)
             st.plotly_chart(fig_pie, use_container_width=True)
