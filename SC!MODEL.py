@@ -576,7 +576,7 @@ with tab_calculations:
                              shipping_details.append({
                                 "Warehouse": f"WH {i+1} ({wh.get('location')})",
                                 "Type": wh["type"],
-                                "Annual Demand (Units)": f"{annual_demand_wh:,.0f}",
+                                "Forcast Annual Demand (Units)": f"{annual_demand_wh:,.0f}",
                                 "Est. Shipments": shipment_type,
                                 "Annual Shipping Cost ($)": f"{wh_shipping_cost:,.0f}"
                              })
