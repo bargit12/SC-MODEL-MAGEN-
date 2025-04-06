@@ -817,7 +817,4 @@ with tab_summary:
              st.dataframe(summary_df, hide_index=True, use_container_width=True)
         else:
              st.info("Warehouse summary data not available.")
-        st.markdown("### Actions")
-        if st.button("Generate Report / Submit Scenario", type="primary"):
-            st.success("Scenario data processed! (Report generation not implemented in this demo)")
 # --- UI Enhancement End ---
