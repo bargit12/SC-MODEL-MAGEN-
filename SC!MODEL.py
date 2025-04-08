@@ -161,7 +161,7 @@ with tab_setup:
             st.markdown("<p class='sub-header-font'>Configure Parameters for Selected Market Areas:</p>", unsafe_allow_html=True)
             for area in selected_market_areas:
                  with st.expander(f"Parameters for Market Area: {area}", expanded=False):
-                    # NEW: Allow user to choose active brands in the area
+                    # Allow user to choose active brands in the area
                     active_brands = st.multiselect(f"Select Active Brands for {area}", options=BRANDS, default=BRANDS, key=f"{area}_active_brands")
                     brand_data = {}
                     for brand in active_brands:
@@ -269,7 +269,8 @@ with tab_setup:
                                      area_avg_order = sum(market_area_data[add_area][b]["avg_order_size"] * market_area_data[add_area][b]["avg_daily_demand"] for b in BRANDS if add_area in market_area_data) / area_total_demand
                                  else:
                                      area_avg_order = 0
-                                 cost_val = st.number_input(f"Cost per Avg Order ({area_avg_order:.0f} units) to {add_area} ($)", min_value=0.0, value=50.0, step=1.0, format="%.2f", key=f"cost_{i}_{add_area}", help=f"Cost to ship an average order to {add_area}.")
+                                 # Update the UI label to reflect per mile
+                                 cost_val = st.number_input(f"Cost per Avg Order per Mile ({area_avg_order:.0f} units) to {add_area} ($)", min_value=0.0, value=50.0, step=1.0, format="%.2f", key=f"cost_{i}_{add_area}", help=f"Cost to ship an average order one mile to {add_area}.")
                              if cost_val == 0 and area_total_demand > 0:
                                  st.warning(f"Enter a non-zero shipping cost for {add_area}.")
                              land_shipping_data[add_area] = {
@@ -296,7 +297,7 @@ with tab_setup:
                      wh_config["front_shipping_cost_53"] = front_shipping_cost_53
                 temp_warehouse_configs[i] = wh_config
         warehouse_data = list(temp_warehouse_configs.values())
-        # NEW: Validate served markets consistency between FRONT and its serving MAIN warehouse
+        # Validate served markets consistency between FRONT and its serving MAIN warehouse
         for i, wh in enumerate(warehouse_data):
             if wh.get("type") == "FRONT":
                 serving_main_label = wh.get("serving_central_wh_key")
@@ -551,9 +552,10 @@ with tab_calculations:
                                          area_annual_demand = compute_annual_forecast_for_area(area, market_area_data)
                                          area_avg_order_size = ship_data.get("calculated_avg_order_size", 1)
                                          cost_per_avg_order = ship_data.get("cost_for_avg_order", 0)
-                                         if area_avg_order_size > 0 and cost_per_avg_order > 0:
+                                         distance_val = ship_data.get("distance", 0)  # Updated to include distance
+                                         if area_avg_order_size > 0 and cost_per_avg_order > 0 and distance_val > 0:
                                              num_orders = ceil(area_annual_demand / area_avg_order_size)
-                                             regional_land_cost += num_orders * cost_per_avg_order
+                                             regional_land_cost += num_orders * cost_per_avg_order * distance_val
                                          elif area_annual_demand > 0 and cost_per_avg_order <= 0:
                                              st.warning(f"Missing regional shipping cost for {area} from {wh['location']}.")
                                      wh_shipping_cost += regional_land_cost
