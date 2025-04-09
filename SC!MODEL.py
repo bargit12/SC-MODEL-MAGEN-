@@ -7,6 +7,8 @@ import plotly.express as px
 import plotly.graph_objects as go
 from math import sqrt, ceil
 from scipy.stats import norm
+import io
+import xlsxwriter
 
 # --- UI Enhancement Start ---
 # Initialize session state variables for storing results
@@ -115,6 +117,27 @@ else:
 tab_setup, tab_calculations, tab_summary = st.tabs(["Setup Configuration", "Run Calculations", "Results Summary"])
 
 # =====================================================
+# Helper Function: Create Combined Excel File
+# =====================================================
+def create_combined_excel(rental_df, inventory_df, shipping_df, labor_df):
+    """
+    Creates an Excel file with 4 sheets:
+    - RentalCosts
+    - InventoryCosts
+    - ShippingCosts
+    - LaborCosts
+    Returns the file as bytes, suitable for download.
+    """
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+        rental_df.to_excel(writer, sheet_name='RentalCosts', index=False)
+        inventory_df.to_excel(writer, sheet_name='InventoryCosts', index=False)
+        shipping_df.to_excel(writer, sheet_name='ShippingCosts', index=False)
+        labor_df.to_excel(writer, sheet_name='LaborCosts', index=False)
+    processed_data = output.getvalue()
+    return processed_data
+
+# =====================================================
 # TAB 1: Setup – Inputs for Brands, Rental, Markets & Warehouses
 # =====================================================
 with tab_setup:
@@ -161,7 +184,6 @@ with tab_setup:
             st.markdown("<p class='sub-header-font'>Configure Parameters for Selected Market Areas:</p>", unsafe_allow_html=True)
             for area in selected_market_areas:
                  with st.expander(f"Parameters for Market Area: {area}", expanded=False):
-                    # Allow user to choose active brands in the area
                     active_brands = st.multiselect(f"Select Active Brands for {area}", options=BRANDS, default=BRANDS, key=f"{area}_active_brands")
                     brand_data = {}
                     for brand in active_brands:
@@ -269,7 +291,6 @@ with tab_setup:
                                      area_avg_order = sum(market_area_data[add_area][b]["avg_order_size"] * market_area_data[add_area][b]["avg_daily_demand"] for b in BRANDS if add_area in market_area_data) / area_total_demand
                                  else:
                                      area_avg_order = 0
-                                 # Update the UI label to reflect per mile
                                  cost_val = st.number_input(f"Cost per Avg Order per Mile ({area_avg_order:.0f} units) to {add_area} ($)", min_value=0.0, value=50.0, step=1.0, format="%.2f", key=f"cost_{i}_{add_area}", help=f"Cost to ship an average order one mile to {add_area}.")
                              if cost_val == 0 and area_total_demand > 0:
                                  st.warning(f"Enter a non-zero shipping cost for {add_area}.")
@@ -292,7 +313,7 @@ with tab_setup:
                      with front_ship_col1:
                          front_shipping_cost_40 = st.number_input("Cost (per 40ft Truckload, $)", min_value=0.0, value=500.0, step=1.0, format="%.0f", key=f"front_shipping_cost_40_{i}", help="Cost for a 40ft truckload.")
                      with front_ship_col2:
-                         front_shipping_cost_53 = st.number_input("Cost (per 53ft Truckload, $)", min_value=0.0, value=600.0, step=1.0, format="%.0f", key=f"front_shipping_cost_53_{i}", help="Cost for a 53ft truckload.")
+                         front_shipping_cost_53 = st.number_input("Cost (per 53ft Truckload, $)", min_value=0.0, value=600.0, step=1.0, format="%.0f", key=f"front_shipping_cost_{i}_53", help="Cost for a 53ft truckload.")
                      wh_config["front_shipping_cost_40"] = front_shipping_cost_40
                      wh_config["front_shipping_cost_53"] = front_shipping_cost_53
                 temp_warehouse_configs[i] = wh_config
@@ -719,7 +740,35 @@ with tab_calculations:
                     st.dataframe(st.session_state.labor_details_df, use_container_width=True, hide_index=True)
                 else:
                      st.info("Labor cost results will appear here after calculation.")
+        
         # --- UI Enhancement End ---
+        
+        # --- Additional: Download Combined Excel File ---
+        st.divider()
+        if st.button("Download Combined Excel"):
+            if (st.session_state.rental_costs_calculated and
+                st.session_state.inventory_costs_calculated and
+                st.session_state.shipping_costs_calculated and
+                st.session_state.labor_costs_calculated):
+                
+                excel_bytes = create_combined_excel(
+                    rental_df=st.session_state.rental_details_df,
+                    inventory_df=st.session_state.inventory_details_df,
+                    shipping_df=st.session_state.shipping_details_df,
+                    labor_df=st.session_state.labor_details_df
+                )
+                st.download_button(
+                    label="Download 4-Sheet Excel",
+                    data=excel_bytes,
+                    file_name="combined_results.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                )
+            else:
+                st.warning("Please calculate all cost components (Rental, Inventory, Shipping, and Labor) before downloading.")
+
+# =====================================================
+# TAB 3: Results Summary
+# =====================================================
 with tab_summary:
     st.markdown("<p class='section-header-font'><i class='fas fa-chart-pie icon'></i>Scenario Cost Summary</p>", unsafe_allow_html=True)
     all_calculated = (st.session_state.rental_costs_calculated and
@@ -784,26 +833,34 @@ with tab_summary:
              if not st.session_state.rental_details_df.empty:
                  rent_row = st.session_state.rental_details_df[st.session_state.rental_details_df['Warehouse'] == wh_label]
                  if not rent_row.empty:
-                     try: rental_cost = float(rent_row.iloc[0]['Annual Rent ($)'].replace(',', ''))
-                     except: pass
+                     try: 
+                         rental_cost = float(rent_row.iloc[0]['Annual Rent ($)'].replace(',', ''))
+                     except: 
+                         pass
              inv_cost = 0.0
              if not st.session_state.inventory_details_df.empty:
                   inv_rows = st.session_state.inventory_details_df[st.session_state.inventory_details_df['Warehouse'] == wh_label]
                   if not inv_rows.empty:
-                       try: inv_cost = inv_rows['Annual Financing Cost ($)'].str.replace('[$,]', '', regex=True).astype(float).sum()
-                       except: pass
+                       try:
+                           inv_cost = inv_rows['Annual Financing Cost ($)'].str.replace('[$,]', '', regex=True).astype(float).sum()
+                       except:
+                           pass
              ship_cost = 0.0
              if not st.session_state.shipping_details_df.empty:
                  ship_row = st.session_state.shipping_details_df[st.session_state.shipping_details_df['Warehouse'] == wh_label]
                  if not ship_row.empty:
-                      try: ship_cost = float(ship_row.iloc[0]['Annual Shipping Cost ($)'].replace(',', ''))
-                      except: pass
+                      try:
+                          ship_cost = float(ship_row.iloc[0]['Annual Shipping Cost ($)'].replace(',', ''))
+                      except:
+                          pass
              labor_cost = 0.0
              if not st.session_state.labor_details_df.empty:
                  labor_row = st.session_state.labor_details_df[st.session_state.labor_details_df['Warehouse'] == wh_label]
                  if not labor_row.empty:
-                      try: labor_cost = float(labor_row.iloc[0]['Annual Labor Cost ($)'].replace(',', ''))
-                      except: pass
+                      try:
+                          labor_cost = float(labor_row.iloc[0]['Annual Labor Cost ($)'].replace(',', ''))
+                      except:
+                          pass
              total_cost = rental_cost + inv_cost + ship_cost + labor_cost
              summary_list.append({
                  "Warehouse": wh_label,
