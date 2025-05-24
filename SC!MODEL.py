@@ -502,27 +502,24 @@ with tab_calculations:
                             rent_price = wh["rent_price"]
                             wh_type = wh["type"]
                             overhead = overhead_factor_main if wh_type == "MAIN" else overhead_factor_front
-max_monthly = compute_max_monthly_forecast(wh, market_area_data)
-if wh_type == "MAIN":
-    safety_stock_main = compute_safety_stock_main(wh, market_area_data, Z_value, layout_type, warehouse_data)
-    calculated_units = max_monthly + safety_stock_main
-else:
-    daily_sum = compute_daily_demand_sum(wh, market_area_data)
-    calculated_units = (max_monthly / 4.0) + (daily_sum * 12.0)
-wh_area = sq_ft_per_unit * overhead * calculated_units
+                            max_monthly = compute_max_monthly_forecast(wh, market_area_data)
+                            if wh_type == "MAIN":
+                                safety_stock_main = compute_safety_stock_main(wh, market_area_data, Z_value, layout_type, warehouse_data)
+                                calculated_units = max_monthly + safety_stock_main
+                            else:
+                                daily_sum = compute_daily_demand_sum(wh, market_area_data)
+                                calculated_units = (max_monthly / 4.0) + (daily_sum * 12.0)
+                            wh_area = sq_ft_per_unit * overhead * calculated_units
 
-# חישוב מחיר לפי שיטה
-if rent_method == "Fixed Rent Price":
-    wh_rental_cost = rent_price
-else:
-    if sq_ft_per_unit <= 0 or rent_price <= 0:
-        st.error(f"Invalid rental parameters for Warehouse {i+1}.")
-        valid_input = False
-        break
-    wh_rental_cost = rent_price * wh_area
-                           
-                                
-                                
+                            # חישוב מחיר לפי שיטה
+                            if rent_method == "Fixed Rent Price":
+                                wh_rental_cost = rent_price
+                            else:
+                                if sq_ft_per_unit <= 0 or rent_price <= 0:
+                                    st.error(f"Invalid rental parameters for Warehouse {i+1}.")
+                                    valid_input = False
+                                    break
+                                wh_rental_cost = rent_price * wh_area                
                             rental_details.append({
                                 "Warehouse": f"WH {i+1} ({wh.get('location')})",
                                 "Type": wh_type,
